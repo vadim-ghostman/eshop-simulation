@@ -4,7 +4,7 @@ import bodyParser from 'body-parser';
 import { Pool } from 'pg';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { OrderRequest, OrderedProduct, Product } from './types';
+import { OrderRequest, Product } from './types';
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -38,7 +38,7 @@ const swaggerDocs = swaggerJSDoc(swaggerOptions);
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 /**
  * @swagger
@@ -118,10 +118,26 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  */
 app.post('/api/orders/create', async (req: Request, res: Response) => {
   const { email, products }: OrderRequest = req.body;
+  if (!email) {
+    res.status(400).json({ status: "error", message: "email is not provided" });
+    return;
+  }
   if (!products || products.length === 0) {
     res.status(400).json({ status: "error", message: "products list is not provided" })
     return;
   }
+
+  const productsIds = products.map((product) => product.id);
+  const productsIdsCount = productsIds.reduce((acc: { [key: number]: number }, id) => {
+    acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {});
+
+  if (productsIds.length !== Object.keys(productsIdsCount).length) {
+    res.status(400).json({ status: "error", message: "duplicated products" });
+    return;
+  }
+
   const dbProducts: Product[] = (await pool.query("SELECT * FROM products")).rows;
 
   for (const product of products) {
@@ -326,7 +342,7 @@ app.get('/api/orders', async (req: Request, res: Response) => {
 app.delete('/api/orders/delete/:id', async (req: Request, res: Response) => {
   // I think products don't have to return back into storages after order deletion
   const id = req.params.id;
-  if (!id || !parseInt(id)) {
+  if (!id || isNaN(parseInt(id))) {
     res.status(400).json({ status: "error", message: "order id is not provided" });
     return;
   }

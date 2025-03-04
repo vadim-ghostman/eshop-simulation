@@ -5,7 +5,7 @@ export interface Product {
   left_count: number;
 }
 
-export interface OrderedProduct {
+interface OrderedProduct {
   id: number;
   count: number;
 }
