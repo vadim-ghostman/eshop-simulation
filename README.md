@@ -1,6 +1,6 @@
 # eshop simulation
 
-## Stack
+## ⚙️ Stack
 
 [React](https://react.dev/) & [TailwindCSS](https://tailwindcss.com/) & [Ky](https://github.com/sindresorhus/ky)🦄 for frontend
 
@@ -8,7 +8,7 @@
 
 [PostgreSQL](https://www.postgresql.org/) & [Adminer](https://www.adminer.org/) for database
 
-## Start all services (Docker)
+## 🚀 Start all services (Docker)
 
 ```bash
 docker compose up -d --build
