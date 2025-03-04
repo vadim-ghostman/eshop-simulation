@@ -14,8 +14,13 @@ const CardProductInfo = ({ title, count, id, imageUrl, onClick }: CardProductInf
       <div className="flex gap-[20px] items-center">
         <img src={imageUrl} className="w-[150px] aspect-square rounded-[20px] shadow-[0_2px_4px_0_rgba(0,0,0,0.15)]" alt={title} />
         <div className="flex flex-col gap-2">
-          <h1 className="text-[var(--strict-white)] text-[32px] font-bold">{title}</h1>
-          <p className="text-[var(--light-lime)] italic text-[20px]">count: {count} ({id})</p>
+          <h1 className="flex gap-1 items-center text-[var(--strict-white)] text-[32px] font-bold">
+            {title}{' | '}
+            <span className="text-[var(--light-lime)] italic text-[20px]">
+              id: {id}
+            </span>
+          </h1>
+          <p className="text-[var(--light-lime)] italic text-[20px]">count: {count}</p>
         </div>
       </div>
       <div

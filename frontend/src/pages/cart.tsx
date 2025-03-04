@@ -45,7 +45,9 @@ const Cart = () => {
         }
         newData.push();
         setProducts(newData);
-      })
+      }).catch((err) => {
+        console.error(err);
+      });
     };
     fillProducts();
   }, []);
@@ -57,7 +59,7 @@ const Cart = () => {
     '/cap.jpg'
   ]
 
-  const saveEmail = async () => {
+  const makeOrderWithEmail = async () => {
     const order = localStorage.getItem('cartProducts');
     if (!order) {
       console.error("your cart is empty");
@@ -68,7 +70,10 @@ const Cart = () => {
 
     if (orderObject.products) {
       localStorage.removeItem('cartProducts');
-      await createOrder(email, orderObject.products);
+      await createOrder(email, orderObject.products).catch((err) => {
+        console.error(err);
+      });
+      setEmail('');
       setProducts([]);
     }
   }
@@ -85,6 +90,7 @@ const Cart = () => {
     if (orderObject.products) {
       orderObject.products = orderObject.products.filter((p) => p.id !== id);
       localStorage.setItem('cartProducts', JSON.stringify(orderObject));
+      setProducts([]);
     }
   }
 
@@ -108,7 +114,7 @@ const Cart = () => {
             ))}
           </div>
         </div>
-        <EmailForm onClick={saveEmail} email={email} setEmail={setEmail}/>
+        <EmailForm isInCart={true} onClick={makeOrderWithEmail} email={email} setEmail={setEmail}/>
       </div>
     </div>
   )

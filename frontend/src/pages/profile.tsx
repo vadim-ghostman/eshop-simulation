@@ -3,7 +3,7 @@
 import Header from '../layout/header/header'
 import OrderInfo from '../components/orderInfo';
 import EmailForm from '../components/emailForm';
-import { getOrders, Order } from '../utils/api';
+import { getOrders, Order, deleteOrder } from '../utils/api';
 import { useEffect, useState } from 'react';
 
 interface ErrorResponse {
@@ -17,6 +17,7 @@ const Profile = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   const fillOrders = async () => {
+    if (email === '') return;
     await getOrders(email).then((data: Order[] | ErrorResponse) => {
       const errorData = data as ErrorResponse;
       if (errorData.status && errorData.status === 'error') {
@@ -24,7 +25,9 @@ const Profile = () => {
         return;
       }
       setOrders(data);
-    })
+    }).catch((err) => {
+      console.error(err);
+    });
   }
 
   useEffect(() => {
@@ -32,7 +35,7 @@ const Profile = () => {
   }, []);
 
   const removeOrder = async (id: number) => {
-    await removeOrder(id);
+    await deleteOrder(id);
     setOrders([]);
     setSuccessMessage("order has been removed successfully");
   }
@@ -47,14 +50,14 @@ const Profile = () => {
             {successMessage !== '' && <p className='text-green-600 italic'>{successMessage}</p>}
             {(orders as Order[]) && (orders as Order[]).map((order, index) => (
               <OrderInfo
-                onClick={() => removeOrder(order.order_id)}
                 key={index}
+                onClick={() => removeOrder(order.order_id)}
                 products={order.products}
               />
             ))}
           </div>
         </div>
-        <EmailForm onClick={fillOrders} email={email} setEmail={setEmail}/>
+        <EmailForm isInCart={false} onClick={fillOrders} email={email} setEmail={setEmail}/>
       </div>
     </div>
   )
