@@ -3,38 +3,40 @@
 import Header from '../layout/header/header'
 import OrderInfo from '../components/orderInfo';
 import EmailForm from '../components/emailForm';
+import { getOrders, Order } from '../utils/api';
+import { useEffect, useState } from 'react';
+
+interface ErrorResponse {
+  status: string;
+  message: string;
+}
 
 const Profile = () => {
-  const products = [
-    {
-      title: 'pants',
-      description: 'these panties is very good for everyday use',
-      count: 7,
-      id: 1,
-      imageUrl: '/pants.jpg'
-    },
-    {
-      title: 't-shirt',
-      description: 'this tshirts is very good for everyday use',
-      count: 10,
-      id: 3,
-      imageUrl: '/tshirt.jpg'
-    },
-    {
-      title: 'mikina',
-      description: 'this mikina is very good for everyday use',
-      count: 3,
-      id: 2,
-      imageUrl: '/sweatshirt.jpg'
-    },
-    {
-      title: 'cap',
-      description: 'this cap is very good for everyday use',
-      count: 5,
-      id: 4,
-      imageUrl: '/cap.jpg'
-    }
-  ]
+  const [orders, setOrders] = useState<Order[] | ErrorResponse>([]);
+  const [email, setEmail] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const fillOrders = async () => {
+    await getOrders(email).then((data: Order[] | ErrorResponse) => {
+      const errorData = data as ErrorResponse;
+      if (errorData.status && errorData.status === 'error') {
+        console.error(errorData.message);
+        return;
+      }
+      setOrders(data);
+    })
+  }
+
+  useEffect(() => {
+    fillOrders();
+  }, []);
+
+  const removeOrder = async (id: number) => {
+    await removeOrder(id);
+    setOrders([]);
+    setSuccessMessage("order has been removed successfully");
+  }
+
   return (
     <div className='bg-[var(--strict-white)] min-h-screen flex gap-[40px] flex-col w-full'>
       <Header />
@@ -42,15 +44,17 @@ const Profile = () => {
         <div className='flex flex-col w-full gap-[20px]'>
           <h1 className='text-[var(--primary-dark)] text-[32px] font-bold'>Profile</h1>
           <div className='flex gap-[20px] flex-col items-start'>
-            <OrderInfo
-              products={products.slice(0, 2)}
-            />
-            <OrderInfo
-              products={products.slice(2)}
-            />
+            {successMessage !== '' && <p className='text-green-600 italic'>{successMessage}</p>}
+            {(orders as Order[]) && (orders as Order[]).map((order, index) => (
+              <OrderInfo
+                onClick={() => removeOrder(order.order_id)}
+                key={index}
+                products={order.products}
+              />
+            ))}
           </div>
         </div>
-        <EmailForm />
+        <EmailForm onClick={fillOrders} email={email} setEmail={setEmail}/>
       </div>
     </div>
   )

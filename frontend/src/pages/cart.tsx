@@ -3,74 +3,90 @@
 import Header from '../layout/header/header'
 import CardProductInfo from '../components/cartProductInfo';
 import EmailForm from '../components/emailForm';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createOrder, getProducts, Product } from '../utils/api';
+
+interface CartProduct {
+  product_id: number,
+  title: string,
+  ordered_count: number
+}
+
+interface CartProductsProps {
+  email: string;
+  products: {
+    count: number,
+    id: number
+  }[];
+}
 
 const Cart = () => {
-  const products = [
-    {
-      title: 'pants',
-      count: 7,
-      id: 1,
-      imageUrl: '/pants.jpg'
-    },
-    {
-      title: 't-shirt',
-      count: 10,
-      id: 3,
-      imageUrl: '/tshirt.jpg'
-    },
-    {
-      title: 'mikina',
-      count: 3,
-      id: 2,
-      imageUrl: '/sweatshirt.jpg'
-    },
-    {
-      title: 'cap',
-      count: 5,
-      id: 4,
-      imageUrl: '/cap.jpg'
-    }
-  ]
+  const [email, setEmail] = useState<string>('');
+  const [products, setProducts] = useState<CartProduct[]>([]);
 
   useEffect(() => {
-    // fetch('http://localhost:8000/api/orders/create', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Allow-Control-Allow-Origin': '*'
-    //   },
-    //   body: JSON.stringify({
-    //     email: 'example@example.com',
-    //     products: [
-    //       {
-    //         id: 1,
-    //         count: 7
-    //       },
-    //       {
-    //         id: 3,
-    //         count: 10
-    //       },
-    //       {
-    //         id: 2,
-    //         count: 3
-    //       },
-    //       {
-    //         id: 4,
-    //         count: 5
-    //       }
-    //     ]
-    //   })
-    // }).then(response => response.json()).then(data => console.log(data));
+    const fillProducts = async () => {
+      await getProducts().then((data: Product[]) => {
+        const newData = [];
+        const order = localStorage.getItem('cartProducts');
+        if (!order) return;
+        const orderObject: CartProductsProps = JSON.parse(order);
 
-    fetch('http://localhost:8000/api/orders', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Allow-Control-Allow-Origin': '*'
-      }
-    }).then(response => response.json()).then(data => console.log(data));
+        for (const product of data) {
+          const ordered_product = orderObject.products.filter(
+            (p) => p.id == product.product_id
+          )[0];
+          if (!ordered_product) continue;
+          newData.push({
+            product_id: product.product_id,
+            title: product.title,
+            ordered_count: ordered_product.count
+          })
+        }
+        newData.push();
+        setProducts(newData);
+      })
+    };
+    fillProducts();
   }, []);
+
+  const images = [
+    '/pants.jpg',
+    '/tshirt.jpg',
+    '/sweatshirt.jpg',
+    '/cap.jpg'
+  ]
+
+  const saveEmail = async () => {
+    const order = localStorage.getItem('cartProducts');
+    if (!order) {
+      console.error("your cart is empty");
+      return;
+    }
+
+    const orderObject: CartProductsProps = JSON.parse(order);
+
+    if (orderObject.products) {
+      localStorage.removeItem('cartProducts');
+      await createOrder(email, orderObject.products);
+      setProducts([]);
+    }
+  }
+
+  const removeFromCart = (id: number) => {
+    const order = localStorage.getItem('cartProducts');
+    if (!order) {
+      console.error("there is no products in cart yet");
+      return;
+    }
+
+    const orderObject: CartProductsProps = JSON.parse(order);
+
+    if (orderObject.products) {
+      orderObject.products = orderObject.products.filter((p) => p.id !== id);
+      localStorage.setItem('cartProducts', JSON.stringify(orderObject));
+    }
+  }
 
   return (
     <div className='bg-[var(--strict-white)] min-h-screen flex gap-[40px] flex-col w-full'>
@@ -79,18 +95,20 @@ const Cart = () => {
         <div className='flex flex-col w-full gap-[20px]'>
           <h1 className='text-[var(--primary-dark)] text-[32px] font-bold'>Cart</h1>
           <div className='flex gap-[20px] flex-col items-start'>
+            {products.length === 0 && <p className='text-gray-500 italic'>there are no products in cart</p>}
             {products.map((product, index) => (
               <CardProductInfo
+                onClick={() => removeFromCart(product.product_id)}
                 key={index}
                 title={product.title}
-                count={product.count}
-                id={product.id}
-                imageUrl={product.imageUrl}
+                count={product.ordered_count}
+                id={product.product_id}
+                imageUrl={images[product.product_id - 1]}
               />
             ))}
           </div>
         </div>
-        <EmailForm />
+        <EmailForm onClick={saveEmail} email={email} setEmail={setEmail}/>
       </div>
     </div>
   )
