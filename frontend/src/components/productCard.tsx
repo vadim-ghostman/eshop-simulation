@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from "react";
+
 interface ProductCardProps {
   title: string;
   description: string;
@@ -7,12 +9,38 @@ interface ProductCardProps {
   id: number;
   errorMessage?: string;
   successMessage?: string;
-  showInput?: boolean;
-  setCount?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   imageUrl?: string;
 }
 
-const ProductCard = ({ title, description, count, id, errorMessage, successMessage, showInput = false, setCount, imageUrl }: ProductCardProps) => {
+const ProductCard = ({ title, description, count, id, errorMessage, successMessage, imageUrl }: ProductCardProps) => {
+  const [, setClicked] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+  const [orderedCount, setOrderedCount] = useState(0);
+
+  const click = () => {
+    if (!showInput) {
+      setClicked(true);
+      setShowInput(true);
+    } else {
+      setClicked(false);
+      setShowInput(false);
+      const products = localStorage.getItem('cartProducts');
+      if (!products) {
+        localStorage.setItem(
+          'cartProducts',
+          JSON.stringify({
+            email: '',
+            products: [{count: orderedCount, id}]
+          })
+        );
+      } else {
+        const cartProducts = JSON.parse(products);
+        cartProducts.products.push({count: orderedCount, id});
+        localStorage.setItem('cartProducts', JSON.stringify(cartProducts));
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col items-center w-[300px] bg-[var(--secondary-aqua)] rounded-[20px] p-[15px] shadow-[0_2px_10px_0_rgba(0,0,0,0.35)] gap-[10px]">
       <img src={imageUrl} className="w-full aspect-square rounded-[20px] shadow-[0_2px_4px_0_rgba(0,0,0,0.15)]" alt="" />
@@ -22,12 +50,22 @@ const ProductCard = ({ title, description, count, id, errorMessage, successMessa
       </div>
       <p className="text-[var(--strict-white)] text-[16px] w-full">{description}</p>
 
-      <div className="size-[40px] cursor-pointer bg-[var(--light-orange)] rounded-full flex items-center justify-center">
+      <div
+        className="size-[40px] cursor-pointer bg-[var(--light-orange)] rounded-full flex items-center justify-center"
+        onClick={click}
+      >
         {!showInput && <img src="/icons/cart.svg" alt="cart" className="size-[20px]"/>}
         {showInput && <img src="/icons/plus.svg" alt="plus" className="size-[20px]"/>}
       </div>
       
-      {showInput && <input type="number" onChange={setCount} className="focus:outline-none focus:ring-[var(--light-orange)] focus:ring-2 bg-[var(--strict-white)] rounded-[10px] text-[18px] text-[var(--primary-dark)] text-center w-[150px]" />}
+      {showInput &&
+        <input
+          type="number"
+          value={orderedCount}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderedCount(parseInt(e.target.value))}
+          className="focus:outline-none focus:ring-[var(--light-orange)] focus:ring-2 bg-[var(--strict-white)] rounded-[10px] text-[18px] text-[var(--primary-dark)] text-center w-[150px]"
+        />
+      }
       
       {errorMessage && <p className="italic text-[16px] text-[var(--restricted-red)]">{errorMessage}</p>}
       {successMessage && <p className="italic text-[16px] text-[var(--light-lime)]">{successMessage}</p>}
