@@ -1,8 +1,8 @@
 export interface Product {
-  id: number;
-  name: string;
+  product_id: number;
+  title: string;
   description: string;
-  count: number;
+  left_count: number;
 }
 
 export interface OrderedProduct {

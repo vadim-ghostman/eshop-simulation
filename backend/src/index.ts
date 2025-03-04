@@ -11,8 +11,8 @@ const port = process.env.PORT || 8000;
 
 const pool = new Pool({
   user: "postgres",
-  host: "localhost",
-  database: "eshop",
+  host: "db",
+  database: "postgres",
   password: "example",
   port: 5432,
 });
@@ -66,8 +66,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *                     count:
  *                       type: number
  *     responses:
- *       200:
- *         description: Successful response
+ *       201:
+ *         description: Created order
  *         content:
  *           application/json:
  *             schema:
@@ -89,16 +89,59 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *                 status:
  *                   type: string
  *                   example: ok
+ *       400:
+ *         description: Error in request data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: ordered count out of range
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: error in `db table`
  */
 app.post('/api/orders/create', async (req: Request, res: Response) => {
   const { email, products }: OrderRequest = req.body;
+  if (!products || products.length === 0) {
+    res.status(400).json({ status: "error", message: "products list is not provided" })
+    return;
+  }
+  const dbProducts: Product[] = (await pool.query("SELECT * FROM products")).rows;
+
+  for (const product of products) {
+    const dbProduct = dbProducts.filter((p) => p.product_id == product.id)[0];
+    if (!dbProduct) {
+      res.status(400).json({ status: "error", message: "non-existing product" })
+      return;
+    }
+    if (product.count > dbProduct.left_count) {
+      res.status(400).json({ status: "error", message: "ordered count out of range" })
+      return;
+    }
+  }
   
   const result = await pool.query(`INSERT INTO orders
     VALUES (DEFAULT, '${email}')
     RETURNING order_id;`).catch((error) => { console.log(error); });
 
   if (!result) {
-    res.json({ status: "error", message: "error in orders" });
+    res.status(500).json({ status: "error", message: "error in orders" });
     return;
   }
 
@@ -112,7 +155,7 @@ app.post('/api/orders/create', async (req: Request, res: Response) => {
 
   const q = await pool.query(query).catch((error) => { console.log(error); });
   if (!q) {
-    res.json({ status: "error", message: "error in ordersProducts" });
+    res.status(500).json({ status: "error", message: "error in ordersProducts" });
     return;
   }
 
@@ -123,12 +166,12 @@ app.post('/api/orders/create', async (req: Request, res: Response) => {
       WHERE product_id = ${product.id}
     `).catch((error) => { console.log(error); });
     if (!pq) {
-      res.json({ status: "error", message: "error in products" });
+      res.status(500).json({ status: "error", message: "error in products" });
       return;
     }
   }
 
-  res.json({ order_id, email, products, status: "ok" });
+  res.status(201).json({ order_id, email, products, status: "ok" });
 });
 
 /**
@@ -177,15 +220,40 @@ app.post('/api/orders/create', async (req: Request, res: Response) => {
  *                               type: string
  *                             left_count:
  *                               type: number
+ *       400:
+ *         description: Email is not provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: email is not provided
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: error in `db table`
  */
 app.get('/api/orders', async (req: Request, res: Response) => {
   const email = req.query.email;
   if (!email) {
-    res.json({ status: "error", message: "email is not provided" });
+    res.status(400).json({ status: "error", message: "email is not provided" });
     return;
   }
   const result = await pool.query(`SELECT * FROM orders WHERE customer_email = '${email}'`);
-  // TODO: join ordersProducts and products
   const orders = result.rows;
   for (let i = 0; i < orders.length; i++) {
     const order_id = orders[i].order_id;
@@ -194,7 +262,7 @@ app.get('/api/orders', async (req: Request, res: Response) => {
       WHERE order_id = ${order_id}
     `).catch((error) => { console.log(error); });
     if (!products) {
-      res.json({ status: "error", message: "error in ordersProducts" });
+      res.status(500).json({ status: "error", message: "error in ordersProducts" });
       return;
     }
     orders[i].products = products.rows;
@@ -207,13 +275,13 @@ app.get('/api/orders', async (req: Request, res: Response) => {
         WHERE product_id = ${product_id}
       `).catch((error) => { console.log(error); });
       if (!product) {
-        res.json({ status: "error", message: "error in products" });
+        res.status(500).json({ status: "error", message: "error in products" });
         return;
       }
       orders[i].products[j].product = product.rows[0];
     }
   }
-  res.json(orders);
+  res.status(200).json(orders);
 });
 
 /**
@@ -241,18 +309,32 @@ app.get('/api/orders', async (req: Request, res: Response) => {
  *                 status:
  *                   type: string
  *                   example: ok
+ *       400:
+ *         description: Order id is not provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: order id is not provided
  */
 app.delete('/api/orders/delete/:id', async (req: Request, res: Response) => {
+  // I think products don't have to return back into storages after order deletion
   const id = req.params.id;
-  if (!id) {
-    res.json({ status: "error", message: "order id is not provided" });
+  if (!id || !parseInt(id)) {
+    res.status(400).json({ status: "error", message: "order id is not provided" });
     return;
   }
   await pool.query(`
     DELETE FROM ordersProducts WHERE order_id = ${id};
     DELETE FROM orders WHERE order_id = ${id};
   `);
-  res.json({ status: "ok" });
+  res.status(200).json({ status: "ok" });
 });
 
 /**
@@ -283,19 +365,19 @@ app.delete('/api/orders/delete/:id', async (req: Request, res: Response) => {
  */
 app.get('/api/products', async (req: Request, res: Response) => {
   const result = await pool.query("SELECT * FROM products");
-  res.json(result.rows);
+  res.status(200).json(result.rows);
 });
 
 /** 
  * @swagger
- * /api/refill:
+ * /api/products/refill:
  *   put:
  *     summary: Refill products
  *     description: Refills products to their original count
  *     tags: [Products]
  *     responses:
  *       200:
- *         description: Successful response
+ *         description: Refilled db
  *         content:
  *           application/json:
  *             schema:
@@ -305,7 +387,7 @@ app.get('/api/products', async (req: Request, res: Response) => {
  *                   type: string
  *                   example: ok
  */
-app.put('/api/refill', async (req: Request, res: Response) => {
+app.put('/api/products/refill', async (req: Request, res: Response) => {
   const query = " \
     UPDATE products SET left_count = 7 WHERE product_id = 1; \
     UPDATE products SET left_count = 10 WHERE product_id = 2; \
@@ -313,7 +395,7 @@ app.put('/api/refill', async (req: Request, res: Response) => {
     UPDATE products SET left_count = 5 WHERE product_id = 4;"
 
   await pool.query(query);
-  res.json({ status: "ok" });
+  res.status(200).json({ status: "ok" });
 });
 
 app.listen(port, () => {
